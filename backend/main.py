@@ -58,10 +58,22 @@ def run_simulation(req: SimulationRequest):
     metrics = scheduler.calculate_metrics(schedule, proc_list)
     
     # 3. AI Analysis
-    ai_risk = ai_analysis.analyze_schedule(proc_list, req.algorithm, metrics)
+    ai_risk = ai_analysis.analyze_schedule(proc_list, req.algorithm, metrics, quantum=req.quantum)
     
     return {
         "schedule": schedule,
         "metrics": metrics,
         "aiAnalysis": ai_risk
     }
+
+class OracleRequest(BaseModel):
+    processes: List[Process]
+
+@app.post("/api/oracle")
+def ask_oracle(req: OracleRequest):
+    # Convert Pydantic models to dicts
+    proc_list = [p.dict() for p in req.processes]
+    
+    recommendation = ai_analysis.consult_oracle(proc_list)
+    
+    return recommendation

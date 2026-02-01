@@ -17,7 +17,29 @@ const SchedulingSimulation = ({ algorithmId }) => {
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState(null); // { schedule, metrics, aiAnalysis }
 
+    const [oracleLoading, setOracleLoading] = useState(false);
+    const [oracleRec, setOracleRec] = useState(null); // { recommended_algorithm, reasoning }
+
     // -- Handlers --
+    const consultOracle = async () => {
+        setOracleLoading(true);
+        setOracleRec(null);
+        try {
+            const res = await fetch('http://localhost:8000/api/oracle', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ processes })
+            });
+            const data = await res.json();
+            setOracleRec(data);
+        } catch (err) {
+            console.error(err);
+            alert("The Oracle is silent (Connection Failed)");
+        } finally {
+            setOracleLoading(false);
+        }
+    };
+
     const addProcess = () => {
         const nextPid = processes.length > 0 ? Math.max(...processes.map(p => p.pid)) + 1 : 1;
         setProcesses([...processes, { pid: nextPid, arrivalTime: 0, burstTime: 5, priority: 1 }]);
@@ -67,10 +89,42 @@ const SchedulingSimulation = ({ algorithmId }) => {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 {/* Left: Controls */}
                 <div className="lg:col-span-5 space-y-6">
-                    <div className="bg-[#FAFAFA] rounded-3xl p-6 border border-black/5 space-y-6 text-sm">
-                        <h2 className="text-lg font-bold flex items-center gap-2">
-                            <Cpu size={18} className="text-blue-600" /> Configuration
-                        </h2>
+                    <div className="bg-[#FAFAFA] rounded-3xl p-6 border border-black/5 space-y-6 text-sm relative overflow-hidden">
+
+                        {/* Oracle Button - Decorative Header */}
+                        <div className="flex justify-between items-center">
+                            <h2 className="text-lg font-bold flex items-center gap-2">
+                                <Cpu size={18} className="text-blue-600" /> Configuration
+                            </h2>
+                            <button
+                                onClick={consultOracle}
+                                disabled={oracleLoading}
+                                className="px-3 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-purple-500/20 hover:shadow-purple-500/40 hover:scale-105 transition-all disabled:opacity-50 disabled:scale-100"
+                            >
+                                <Brain size={12} className={oracleLoading ? "animate-pulse" : ""} />
+                                {oracleLoading ? "Divining..." : "Consult Oracle"}
+                            </button>
+                        </div>
+
+                        {/* Oracle Recommendation Card */}
+                        {oracleRec && (
+                            <motion.div
+                                initial={{ opacity: 0, y: -10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-100 p-4 rounded-xl text-xs relative"
+                            >
+                                <div className="font-bold text-indigo-800 mb-1 flex items-center gap-2">
+                                    <Brain size={14} /> The Oracle Speaks:
+                                </div>
+                                <div className="text-indigo-900/80 leading-relaxed mb-2">
+                                    "{oracleRec.reasoning}"
+                                </div>
+                                <div className="font-bold text-indigo-700 bg-indigo-100/50 inline-block px-2 py-1 rounded">
+                                    Rec: <span className="uppercase">{oracleRec.recommended_algorithm.replace('_', ' ')}</span>
+                                </div>
+                                <button onClick={() => setOracleRec(null)} className="absolute top-2 right-2 text-indigo-300 hover:text-indigo-600"><Trash2 size={12} /></button>
+                            </motion.div>
+                        )}
 
                         {/* Only show Quantum if Round Robin */}
                         {algorithm === 'round_robin' && (
